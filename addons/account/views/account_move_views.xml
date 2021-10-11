@@ -91,7 +91,7 @@
             <field name="name">account.move.line.kanban</field>
             <field name="model">account.move.line</field>
             <field name="arch" type="xml">
-                <kanban class="o_kanban_mobile">
+                <kanban class="o_kanban_mobile" create="false" group_create="false">
                     <field name="date_maturity"/>
                     <field name="move_id"/>
                     <field name="name"/>
@@ -716,7 +716,7 @@
                                         groups="base.group_multi_currency"> in </span>
                                     <field name="currency_id"
                                         groups="base.group_multi_currency"
-                                        attrs="{'readonly': [('posted_before', '=', True)]}"/>
+                                        attrs="{'readonly': [('state', '!=', 'draft')]}"/>
                                 </div>
                             </group>
                         </group>
@@ -1057,6 +1057,7 @@
                                            attrs="{'invisible': [('move_type', 'not in', ('out_invoice', 'out_refund'))]}">
                                         <label for="ref" string="Customer Reference" />
                                         <field name="ref" nolabel="1"/>
+                                        <field name="user_id" invisible="1" force_save="1"/>
                                         <field name="invoice_user_id" domain="[('share', '=', False)]" widget="many2one_avatar_user"/>
                                         <field name="invoice_origin" string="Source Document" force_save="1" invisible="1"/>
                                         <field name="partner_bank_id"
@@ -1186,12 +1187,12 @@
                     <filter name="due_date" string="Due Date" date="invoice_date_due"/>
                     <separator/>
                     <filter invisible="1" string="Late Activities" name="activities_overdue"
-                        domain="[('activity_ids.date_deadline', '&lt;', context_today().strftime('%Y-%m-%d'))]"
+                        domain="[('my_activity_date_deadline', '&lt;', context_today().strftime('%Y-%m-%d'))]"
                         help="Show all records which has next action date is before today"/>
                     <filter invisible="1" string="Today Activities" name="activities_today"
-                        domain="[('activity_ids.date_deadline', '=', context_today().strftime('%Y-%m-%d'))]"/>
+                        domain="[('my_activity_date_deadline', '=', context_today().strftime('%Y-%m-%d'))]"/>
                     <filter invisible="1" string="Future Activities" name="activities_upcoming_all"
-                        domain="[('activity_ids.date_deadline', '&gt;', context_today().strftime('%Y-%m-%d'))]"/>
+                        domain="[('my_activity_date_deadline', '&gt;', context_today().strftime('%Y-%m-%d'))]"/>
                     <group expand="0" string="Group By">
                         <filter string="Salesperson" name="salesperson" context="{'group_by':'invoice_user_id'}"/>
                         <filter name="status" string="Status" context="{'group_by':'state'}"/>

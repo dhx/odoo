@@ -859,6 +859,7 @@ msgstr "<span>PE</span>"
 #. module: website_slides
 #. openerp-web
 #: code:addons/website_slides/static/src/js/slides_course_fullscreen_player.js:0
+#: code:addons/website_slides/static/src/js/slides_share.js:0
 #, python-format
 msgid "<strong>Thank you!</strong> Mail has been sent."
 msgstr "<strong>Grazie!</strong> La e-mail é stata inviata."
@@ -872,6 +873,15 @@ msgstr "Una possente foresta secolare"
 #: model:slide.answer,text_value:website_slides.slide_slide_demo_0_4_question_0_0
 msgid "A fruit"
 msgstr "Un frutto"
+
+#. module: website_slides
+#. openerp-web
+#: code:addons/website_slides/static/src/js/tours/slides_tour.js:0
+#, python-format
+msgid ""
+"A good course has a structure. Pick a name for your first section and click "
+"<b>Save</b> to create it."
+msgstr ""
 
 #. module: website_slides
 #. openerp-web
@@ -2083,7 +2093,7 @@ msgstr "Creato da"
 #: model:ir.model.fields,field_description:website_slides.field_slide_slide_resource__create_date
 #: model:ir.model.fields,field_description:website_slides.field_slide_tag__create_date
 msgid "Created on"
-msgstr "Creato il"
+msgstr "Data creazione"
 
 #. module: website_slides
 #: model_terms:ir.ui.view,arch_db:website_slides.rating_rating_view_search_slide_channel
@@ -3105,7 +3115,7 @@ msgstr "Partecipa al corso"
 #: code:addons/website_slides/static/src/xml/slide_quiz.xml:0
 #, python-format
 msgid "Join the course to take the quiz and verify your answers!"
-msgstr ""
+msgstr "Per partecipare al quiz iscriviti al corso e verifica le risposte."
 
 #. module: website_slides
 #: model:slide.slide,description:website_slides.slide_slide_demo_1_2
@@ -4495,7 +4505,7 @@ msgstr "Accedi"
 #: code:addons/website_slides/static/src/xml/slide_quiz.xml:0
 #, python-format
 msgid "Sign in and join the course to verify your answers!"
-msgstr ""
+msgstr "Per verificare le risposte accedi e iscriviti al corso."
 
 #. module: website_slides
 #: model_terms:ir.ui.view,arch_db:website_slides.view_slide_slide_form
@@ -4761,6 +4771,9 @@ msgid ""
 "document. You can change this number if your attendees will need more time "
 "to assimilate the content."
 msgstr ""
+"La <b>durata</b> della lezione si basa sul numero di pagine del documento. "
+"Puoi cambiarla se i partecipanti hanno bisogno di più tempo per assimilare i"
+" contenuti."
 
 #. module: website_slides
 #. openerp-web
@@ -4771,6 +4784,9 @@ msgid ""
 "you want.</br>A <b>Preview</b> of your file is available on the right side "
 "of the screen."
 msgstr ""
+"Il <b>titolo</b> della lezione viene compilato automaticamente ma, se vuoi, "
+"è possibile cambiarlo.</br>Nel lato destro dello schermo è disponibile una "
+"<b>anteprima</b> del file."
 
 #. module: website_slides
 #: model:ir.model.fields,help:website_slides.field_slide_slide__is_preview
@@ -5240,7 +5256,7 @@ msgstr "Sito web"
 #. module: website_slides
 #: model:ir.model.fields.selection,name:website_slides.selection__gamification_challenge__challenge_category__slides
 msgid "Website / Slides"
-msgstr ""
+msgstr "Sito web / Diapositive"
 
 #. module: website_slides
 #: model:ir.model.fields,field_description:website_slides.field_slide_channel__website_message_ids
@@ -5402,6 +5418,8 @@ msgid ""
 "You can add <b>comments</b> on answers. This will be visible with the "
 "results if the user select this answer."
 msgstr ""
+"Puoi aggiungere <b>commenti</b> alle risposte. Se l'utente seleziona la "
+"risposta sono visibili insieme ai risultati."
 
 #. module: website_slides
 #. openerp-web
@@ -5611,6 +5629,13 @@ msgstr ""
 "es. Nel video forniremo i fattori chiave che spiegano in che modo Odoo può "
 "aiutare a far crescere la tua attività. Al termine, verrà proposto un quiz "
 "per mettere alla prova le tue conoscenze."
+
+#. module: website_slides
+#. openerp-web
+#: code:addons/website_slides/static/src/xml/slide_management.xml:0
+#, python-format
+msgid "e.g. Introduction"
+msgstr "es. Introduzione"
 
 #. module: website_slides
 #: model_terms:ir.ui.view,arch_db:website_slides.view_slide_slide_form

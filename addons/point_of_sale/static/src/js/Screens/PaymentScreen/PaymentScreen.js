@@ -178,7 +178,8 @@ odoo.define('point_of_sale.PaymentScreen', function (require) {
                     syncedOrderBackendIds = await this.env.pos.push_single_order(this.currentOrder);
                 }
             } catch (error) {
-                this.error = true;
+                if (error.code == 700)
+                    this.error = true;
                 if (error instanceof Error) {
                     throw error;
                 } else {
@@ -322,7 +323,7 @@ odoo.define('point_of_sale.PaymentScreen', function (require) {
             const isPaymentSuccessful = await payment_terminal.send_payment_request(line.cid);
             if (isPaymentSuccessful) {
                 line.set_payment_status('done');
-                line.can_be_reversed = this.payment_interface.supports_reversals;
+                line.can_be_reversed = payment_terminal.supports_reversals;
             } else {
                 line.set_payment_status('retry');
             }
