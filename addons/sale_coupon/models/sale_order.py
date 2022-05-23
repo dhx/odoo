@@ -49,8 +49,8 @@ class SaleOrder(models.Model):
         self._send_reward_coupon_mail()
         return super(SaleOrder, self).action_confirm()
 
-    def action_cancel(self):
-        res = super(SaleOrder, self).action_cancel()
+    def _action_cancel(self):
+        res = super()._action_cancel()
         self.generated_coupon_ids.write({'state': 'expired'})
         self.applied_coupon_ids.write({'state': 'new'})
         self.applied_coupon_ids.sales_order_id = False
@@ -132,6 +132,9 @@ class SaleOrder(models.Model):
         else:
             return fixed_amount
 
+    def _get_coupon_program_domain(self):
+        return []
+
     def _get_cheapest_line(self):
         # Unit prices tax included
         return min(self.order_line.filtered(lambda x: not x.is_reward_line and x.price_reduce > 0), key=lambda x: x['price_reduce'])
@@ -156,7 +159,8 @@ class SaleOrder(models.Model):
             }]
         reward_dict = {}
         lines = self._get_paid_order_lines()
-        amount_total = sum(self._get_base_order_lines(program).mapped('price_subtotal'))
+        amount_total = sum([any(line.tax_id.mapped('price_include')) and line.price_total or line.price_subtotal
+                            for line in self._get_base_order_lines(program)])
         if program.discount_apply_on == 'cheapest_product':
             line = self._get_cheapest_line()
             if line:
@@ -275,8 +279,8 @@ class SaleOrder(models.Model):
             no_outdated_coupons=True,
         ).search([
             ('company_id', 'in', [self.company_id.id, False]),
-            '|', ('rule_date_from', '=', False), ('rule_date_from', '<=', self.date_order),
-            '|', ('rule_date_to', '=', False), ('rule_date_to', '>=', self.date_order),
+            '|', ('rule_date_from', '=', False), ('rule_date_from', '<=', fields.Datetime.now()),
+            '|', ('rule_date_to', '=', False), ('rule_date_to', '>=', fields.Datetime.now()),
         ], order="id")._filter_programs_from_common_rules(self)
         # no impact code...
         # should be programs = programs.filtered if we really want to filter...
@@ -291,8 +295,8 @@ class SaleOrder(models.Model):
             applicable_coupon=True,
         ).search([
             ('promo_code_usage', '=', 'no_code_needed'),
-            '|', ('rule_date_from', '=', False), ('rule_date_from', '<=', self.date_order),
-            '|', ('rule_date_to', '=', False), ('rule_date_to', '>=', self.date_order),
+            '|', ('rule_date_from', '=', False), ('rule_date_from', '<=', fields.Datetime.now()),
+            '|', ('rule_date_to', '=', False), ('rule_date_to', '>=', fields.Datetime.now()),
             '|', ('company_id', '=', self.company_id.id), ('company_id', '=', False),
         ])._filter_programs_from_common_rules(self)
         return programs

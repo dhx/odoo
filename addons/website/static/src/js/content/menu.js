@@ -80,7 +80,9 @@ const BaseAnimatedHeader = animations.Animation.extend({
      */
     _adaptToHeaderChange: function () {
         this._updateMainPaddingTop();
-        this.el.classList.toggle('o_top_fixed_element', this.fixedHeader && this._isShown());
+        // Take menu into account when `dom.scrollTo()` is used whenever it is
+        // visible - be it floating, fully displayed or partially hidden.
+        this.el.classList.toggle('o_top_fixed_element', this._isShown());
 
         for (const callback of extraMenuUpdateCallbacks) {
             callback();
@@ -238,17 +240,24 @@ publicWidget.registry.StandardAffixedHeader = BaseAnimatedHeader.extend({
 
         const mainPosScrolled = (scroll > this.headerHeight + this.topGap);
         const reachPosScrolled = (scroll > this.scrolledPoint + this.topGap);
+        const fixedUpdate = (this.fixedHeader !== mainPosScrolled);
+        const showUpdate = (this.fixedHeaderShow !== reachPosScrolled);
 
-        // Switch between static/fixed position of the header
-        if (this.fixedHeader !== mainPosScrolled) {
-            this.$el.css('transform', mainPosScrolled ? 'translate(0, -100%)' : '');
+        if (fixedUpdate || showUpdate) {
+            this.$el.css('transform',
+                reachPosScrolled
+                ? `translate(0, -${this.topGap}px)`
+                : mainPosScrolled
+                ? 'translate(0, -100%)'
+                : '');
             void this.$el[0].offsetWidth; // Force a paint refresh
-            this._toggleFixedHeader(mainPosScrolled);
         }
-        // Show/hide header
-        if (this.fixedHeaderShow !== reachPosScrolled) {
-            this.$el.css('transform', reachPosScrolled ? `translate(0, -${this.topGap}px)` : 'translate(0, -100%)');
-            this.fixedHeaderShow = reachPosScrolled;
+
+        this.fixedHeaderShow = reachPosScrolled;
+
+        if (fixedUpdate) {
+            this._toggleFixedHeader(mainPosScrolled);
+        } else if (showUpdate) {
             this._adaptToHeaderChange();
         }
     },

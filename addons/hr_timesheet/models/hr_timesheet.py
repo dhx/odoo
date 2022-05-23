@@ -48,10 +48,17 @@ class AccountAnalyticLine(models.Model):
     employee_id = fields.Many2one('hr.employee', "Employee", domain=_domain_employee_id)
     department_id = fields.Many2one('hr.department', "Department", compute='_compute_department_id', store=True, compute_sudo=True)
     encoding_uom_id = fields.Many2one('uom.uom', compute='_compute_encoding_uom_id')
+    partner_id = fields.Many2one(compute='_compute_partner_id', store=True, readonly=False)
 
     def _compute_encoding_uom_id(self):
         for analytic_line in self:
             analytic_line.encoding_uom_id = analytic_line.company_id.timesheet_encode_uom_id
+
+    @api.depends('task_id.partner_id', 'project_id.partner_id')
+    def _compute_partner_id(self):
+        for timesheet in self:
+            if timesheet.project_id:
+                timesheet.partner_id = timesheet.task_id.partner_id or timesheet.project_id.partner_id
 
     @api.depends('task_id', 'task_id.project_id')
     def _compute_project_id(self):
@@ -201,7 +208,7 @@ class AccountAnalyticLine(models.Model):
                 cost = timesheet.employee_id.timesheet_cost or 0.0
                 amount = -timesheet.unit_amount * cost
                 amount_converted = timesheet.employee_id.currency_id._convert(
-                    amount, timesheet.account_id.currency_id, self.env.company, timesheet.date)
+                    amount, timesheet.account_id.currency_id or timesheet.currency_id, self.env.company, timesheet.date)
                 result[timesheet.id].update({
                     'amount': amount_converted,
                 })

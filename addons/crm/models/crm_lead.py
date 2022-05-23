@@ -589,7 +589,7 @@ class Lead(models.Model):
         # stage change with new stage: update probability and date_closed
         if vals.get('probability', 0) >= 100 or not vals.get('active', True):
             vals['date_closed'] = fields.Datetime.now()
-        elif 'probability' in vals:
+        elif tools.float_compare(vals.get('probability', 0), 0, precision_digits=2) > 0:
             vals['date_closed'] = False
 
         if any(field in ['active', 'stage_id'] for field in vals):
@@ -896,8 +896,10 @@ class Lead(models.Model):
         partner_ids = self.env.user.partner_id.ids
         if self.partner_id:
             partner_ids.append(self.partner_id.id)
+        current_opportunity_id = self.id if self.type == 'opportunity' else False
         action['context'] = {
-            'default_opportunity_id': self.id if self.type == 'opportunity' else False,
+            'search_default_opportunity_id': current_opportunity_id,
+            'default_opportunity_id': current_opportunity_id,
             'default_partner_id': self.partner_id.id,
             'default_partner_ids': partner_ids,
             'default_attendee_ids': [(0, 0, {'partner_id': pid}) for pid in partner_ids],

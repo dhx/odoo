@@ -1869,7 +1869,7 @@ var FieldOne2Many = FieldX2Many.extend({
                         index = self.value.data.length - 1;
                     }
                     var newID = self.value.data[index].id;
-                    self.renderer.editRecord(newID);
+                    return self.renderer.editRecord(newID);
                 }
             }
         });
@@ -3095,6 +3095,14 @@ var FieldRadio = FieldSelection.extend({
     //--------------------------------------------------------------------------
 
     /**
+     * @override
+     * @returns {boolean} always true
+     */
+    isSet: function () {
+        return true;
+    },
+
+    /**
      * Returns the currently-checked radio button, or the first one if no radio
      * button is checked.
      *
@@ -3103,14 +3111,6 @@ var FieldRadio = FieldSelection.extend({
     getFocusableElement: function () {
         var checked = this.$("[checked='true']");
         return checked.length ? checked : this.$("[data-index='0']");
-    },
-
-    /**
-     * @override
-     * @returns {boolean} always true
-     */
-    isSet: function () {
-        return true;
     },
 
     /**

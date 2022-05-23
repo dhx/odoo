@@ -6896,6 +6896,7 @@ QUnit.module('Views', {
                 if (route === '/web/dataset/resequence') {
                     if (moves === 0) {
                         assert.deepEqual(args, {
+                            context: {},
                             model: "foo",
                             ids: [4, 3],
                             offset: 13,
@@ -6904,6 +6905,7 @@ QUnit.module('Views', {
                     }
                     if (moves === 1) {
                         assert.deepEqual(args, {
+                            context: {},
                             model: "foo",
                             ids: [4, 2],
                             offset: 12,
@@ -6912,6 +6914,7 @@ QUnit.module('Views', {
                     }
                     if (moves === 2) {
                         assert.deepEqual(args, {
+                            context: {},
                             model: "foo",
                             ids: [2, 4],
                             offset: 12,
@@ -6920,6 +6923,7 @@ QUnit.module('Views', {
                     }
                     if (moves === 3) {
                         assert.deepEqual(args, {
+                            context: {},
                             model: "foo",
                             ids: [4, 2],
                             offset: 12,
@@ -7348,6 +7352,54 @@ QUnit.module('Views', {
             'Value 2',
             'Value 3',
         ]);
+        list.destroy();
+    });
+
+    QUnit.test('multi edit in view grouped by field not in view', async function (assert) {
+        assert.expect(3);
+
+        this.data.foo.records = [
+            // group 1
+            {id: 1, foo: '1', m2o: 1},
+            {id: 3, foo: '2', m2o: 1},
+            //group 2
+            {id: 2, foo: '1', m2o: 2},
+            {id: 4, foo: '2', m2o: 2},
+            // group 3
+            {id: 5, foo: '2', m2o: 3},
+        ];
+
+        const list = await createView({
+            View: ListView,
+            model: 'foo',
+            data: this.data,
+            arch: `<tree expand="1" multi_edit="1">
+                   <field name="foo"/>
+               </tree>`,
+            groupBy: ['m2o'],
+        });
+
+        // Select items from the first group
+        await testUtils.dom.click(list.$('.o_data_row .o_list_record_selector input:eq(0)'));
+        await testUtils.dom.click(list.$('.o_data_row .o_list_record_selector input:eq(1)'));
+
+        await testUtils.dom.click(list.$('.o_list_char:eq(0)'));
+
+        await testUtils.fields.editInput(list.$('.o_field_widget[name=foo]'), 'test');
+
+        assert.containsOnce(document.body, '.modal');
+        await testUtils.dom.click($('.modal .modal-footer .btn-primary'));
+        assert.containsNone(document.body, '.modal');
+
+        const allNames = [...document.querySelectorAll('.o_data_cell')].map(n => n.textContent);
+        assert.deepEqual(allNames, [
+            'test',
+            'test',
+            '1',
+            '2',
+            '2',
+        ]);
+
         list.destroy();
     });
 

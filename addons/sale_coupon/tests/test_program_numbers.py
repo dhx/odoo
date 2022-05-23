@@ -751,7 +751,7 @@ class TestSaleCouponProgramNumbers(TestSaleCouponCommon):
         })
 
         order = self.empty_order
-        orderline = self.env['sale.order.line'].create([
+        self.env['sale.order.line'].create([
         {
             'product_id': self.conferenceChair.id,
             'name': 'Conference Chair',
@@ -793,10 +793,7 @@ class TestSaleCouponProgramNumbers(TestSaleCouponCommon):
         }).process_coupon()
         self.assertEqual(order.amount_total, 0.0, "The promotion program should not make the order total go below 0")
         order.recompute_coupon_lines()
-        #TODO fix numbers
-        self.assertEqual(order.amount_total, 9.09, "The promotion program should not be altered after recomputation")
-        self.assertEqual(order.amount_tax, 8.18)
-        self.assertEqual(order.amount_untaxed, 0.91)
+        self.assertEqual(order.amount_total, 0.0, "The promotion program should not be altered after recomputation")
 
         order.order_line[3:].unlink() #remove all coupon
 
@@ -811,10 +808,38 @@ class TestSaleCouponProgramNumbers(TestSaleCouponCommon):
                 'coupon_code': 'test_10pc'
             }).process_coupon()
         order.recompute_coupon_lines()
-        #TODO fix numbers
-        self.assertEqual(order.amount_tax, 9.01)
-        self.assertEqual(order.amount_untaxed, 0.08)
-        self.assertEqual(order.amount_total, 9.09, "The promotion program should not be altered after recomputation")
+        self.assertEqual(order.amount_total, 0.0, "The promotion program should not be altered after recomputation")
+
+    def test_program_percentage_discount_on_product_included_tax(self):
+        # test 100% percentage discount (tax included)
+
+        program = self.env['coupon.program'].create({
+            'name': '100% discount',
+            'promo_code_usage': 'no_code_needed',
+            'program_type': 'promotion_program',
+            'discount_percentage': 100.0,
+            'rule_minimum_amount_tax_inclusion': 'tax_included',
+        })
+        self.tax_10pc_incl.price_include = True
+
+        self.drawerBlack.taxes_id = self.tax_10pc_incl
+        order = self.empty_order
+        order.order_line = self.env['sale.order.line'].create({
+            'product_id': self.drawerBlack.id,
+            'product_uom_qty': 1.0,
+            'order_id': order.id,
+        })
+        order.recompute_coupon_lines()
+        self.assertEqual(len(order.order_line.ids), 2, "The discount should be applied")
+        self.assertEqual(order.amount_total, 0.0, "Order should be 0 as it is a 100% discount")
+
+        # test 95% percentage discount (tax included)
+        program.discount_percentage = 95
+        order.recompute_coupon_lines()
+        # lst_price is 25$ so total now should be 1.25$ (1.14$ + 0.11$ taxes)
+        self.assertEqual(len(order.order_line.ids), 2, "The discount should be applied")
+        self.assertAlmostEqual(order.amount_tax, 0.11, places=2)
+        self.assertAlmostEqual(order.amount_untaxed, 1.14, places=2)
 
     def test_program_discount_on_multiple_specific_products(self):
         """ Ensure a discount on multiple specific products is correctly computed.
@@ -1167,3 +1192,61 @@ class TestSaleCouponProgramNumbers(TestSaleCouponCommon):
         self.assertEqual(len(order.order_line), 2, 'The order must contain 2 order lines: 1x Product F and 1x 5$ discount')
         self.assertEqual(order.amount_total, 190.0, 'The price must be 190.0 since there is now 2x 5$ discount and 2x Product F')
         self.assertEqual(order.order_line.filtered(lambda x: x.is_reward_line).price_unit, -5, 'The discount unit price should still be -5 after the quantity was manually changed')
+
+    def test_program_maximum_use_number_with_other_promo(self):
+        self.env['coupon.program'].create({
+            'name': '20% discount on first order',
+            'promo_code_usage': 'no_code_needed',
+            'program_type': 'promotion_program',
+            'discount_type': 'percentage',
+            'discount_percentage': 20.0,
+            'maximum_use_number': 1,
+        })
+        self.p1.promo_code_usage = 'no_code_needed'
+
+        #check that 20% is applied at first order
+        order = self.empty_order
+        self.env['sale.order.line'].create({
+            'product_id': self.drawerBlack.id,
+            'product_uom_qty': 1.0,
+            'order_id': order.id,
+        })
+        order.recompute_coupon_lines()
+        self.assertEqual(order.amount_total, 20.0, "20% discount should be applied")
+        self.assertEqual(len(order.order_line.ids), 2, "discount should be applied")
+
+        #check that 10% is applied at second order
+        order2 = self.env['sale.order'].create({'partner_id': self.steve.id})
+        self.env['sale.order.line'].create({
+            'product_id': self.drawerBlack.id,
+            'product_uom_qty': 1.0,
+            'order_id': order2.id,
+        })
+        order2.recompute_coupon_lines()
+        self.assertEqual(order2.amount_total, 22.5, "10% discount should be applied")
+        self.assertEqual(len(order2.order_line.ids), 2, "discount should be applied")
+
+    def test_program_maximum_use_number_last_order(self):
+        # reuse p1 with a different promo code and a maximum_use_number of 1
+        self.p1.promo_code = 'promo1'
+        self.p1.maximum_use_number = 1
+
+        # check that the discount is applied on the first order
+        order = self.empty_order
+        self.env['sale.order.line'].create({
+            'product_id': self.drawerBlack.id,
+            'product_uom_qty': 1.0,
+            'order_id': order.id,
+        })
+        self.env['sale.coupon.apply.code'].sudo().apply_coupon(order, 'promo1')
+        order.recompute_coupon_lines()
+        self.assertEqual(order.amount_total, 22.5, "10% discount should be applied")
+        self.assertEqual(len(order.order_line.ids), 2, "discount should be applied")
+
+        # duplicating to mimic website behavior (each refresh to /shop/cart
+        # recompute coupon lines if website_sale_coupon is installed)
+        order.recompute_coupon_lines()
+        self.assertEqual(order.amount_total, 22.5, "10% discount should be applied")
+        self.assertEqual(len(order.order_line.ids), 2, "discount should be applied")
+        # applying the code again should return that it has been expired.
+        self.assertDictEqual(self.env['sale.coupon.apply.code'].sudo().apply_coupon(order, 'promo1'), {'error': 'Promo code promo1 has been expired.'})
