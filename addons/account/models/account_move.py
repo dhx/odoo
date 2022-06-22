@@ -184,9 +184,9 @@ class AccountMove(models.Model):
     partner_id = fields.Many2one('res.partner', readonly=True, tracking=True,
         states={'draft': [('readonly', False)]},
         check_company=True,
-        string='Partner', change_default=True)
+        string='Partner', change_default=True, ondelete='restrict')
     commercial_partner_id = fields.Many2one('res.partner', string='Commercial Entity', store=True, readonly=True,
-        compute='_compute_commercial_partner_id')
+        compute='_compute_commercial_partner_id', ondelete='restrict')
     country_code = fields.Char(related='company_id.country_id.code', readonly=True)
     user_id = fields.Many2one(string='User', related='invoice_user_id',
         help='Technical field used to fit the generic behavior in mail templates.')
@@ -198,6 +198,7 @@ class AccountMove(models.Model):
         help="It indicates that the invoice/payment has been sent.",
     )
     partner_bank_id = fields.Many2one('res.partner.bank', string='Recipient Bank',
+        compute="_compute_partner_bank_id", store=True, readonly=False,
         help='Bank Account Number to which the invoice will be paid. A Company bank account if this is a Customer Invoice or Vendor Credit Note, otherwise a Partner bank account number.',
         check_company=True)
     payment_reference = fields.Char(string='Payment Reference', index=True, copy=False,
@@ -473,8 +474,6 @@ class AccountMove(models.Model):
                 line.account_id = new_term_account
 
         self._compute_bank_partner_id()
-        bank_ids = self.bank_partner_id.bank_ids.filtered(lambda bank: bank.company_id is False or bank.company_id == self.company_id)
-        self.partner_bank_id = bank_ids and bank_ids[0]
 
         # Find the new fiscal position.
         delivery_partner_id = self._get_invoice_delivery_partner_id()
@@ -1347,7 +1346,13 @@ class AccountMove(models.Model):
         for move in self:
             move.commercial_partner_id = move.partner_id.commercial_partner_id
 
-    @api.depends('commercial_partner_id')
+    @api.depends('bank_partner_id')
+    def _compute_partner_bank_id(self):
+        for move in self:
+            bank_ids = move.bank_partner_id.bank_ids.filtered(lambda bank: bank.company_id is False or bank.company_id == move.company_id)
+            move.partner_bank_id = bank_ids and bank_ids[0]
+
+    @api.depends('commercial_partner_id', 'move_type')
     def _compute_bank_partner_id(self):
         for move in self:
             if move.is_outbound():
@@ -2386,7 +2391,9 @@ class AccountMove(models.Model):
             return tags
 
         move_vals = self.with_context(include_business_fields=True).copy_data(default=default_values)[0]
-
+        # partner_bank_id field will be set by _compute_partner_bank_id
+        if 'partner_bank_id' in move_vals:
+            del move_vals['partner_bank_id']
         is_refund = False
         if move_vals['move_type'] in ('out_refund', 'in_refund'):
             is_refund = True
@@ -2658,6 +2665,14 @@ class AccountMove(models.Model):
             if (move.company_id.tax_lock_date and move.date <= move.company_id.tax_lock_date) and (move.line_ids.tax_ids or move.line_ids.tax_tag_ids):
                 move.date = move._get_accounting_date(move.invoice_date or move.date, True)
                 move.with_context(check_move_validity=False)._onchange_currency()
+
+
+        for move in to_post:
+            # Fix inconsistencies that may occure if the OCR has been editing the invoice at the same time of a user. We force the
+            # partner on the lines to be the same as the one on the move, because that's the only one the user can see/edit.
+            wrong_lines = move.is_invoice() and move.line_ids.filtered(lambda aml: aml.partner_id != move.commercial_partner_id and not aml.display_type)
+            if wrong_lines:
+                wrong_lines.partner_id = move.commercial_partner_id.id
 
         # Create the analytic lines in batch is faster as it leads to less cache invalidation.
         to_post.mapped('line_ids').create_analytic_lines()
@@ -2931,7 +2946,6 @@ class AccountMove(models.Model):
             move.write({
                 'move_type': move.move_type.replace('invoice', 'refund'),
                 'invoice_line_ids' : [(5, 0, 0)],
-                'partner_bank_id': False,
             })
             move.write({'invoice_line_ids' : new_invoice_line_ids})
 
@@ -3952,16 +3966,15 @@ class AccountMoveLine(models.Model):
             if account.allowed_journal_ids and journal not in account.allowed_journal_ids:
                 raise UserError(_('You cannot use this account (%s) in this journal, check the field \'Allowed Journals\' on the related account.', account.display_name))
 
-            failed_check = False
-            if (journal.type_control_ids - journal.default_account_id.user_type_id) or journal.account_control_ids:
-                failed_check = True
-                if journal.type_control_ids:
-                    failed_check = account.user_type_id not in (journal.type_control_ids - journal.default_account_id.user_type_id)
-                if failed_check and journal.account_control_ids:
-                    failed_check = account not in journal.account_control_ids
+            if account in (journal.default_account_id, journal.suspense_account_id):
+                continue
 
-            if failed_check:
-                raise UserError(_('You cannot use this account (%s) in this journal, check the section \'Control-Access\' under tab \'Advanced Settings\' on the related journal.', account.display_name))
+            is_account_control_ok = not journal.account_control_ids or account in journal.account_control_ids
+            is_type_control_ok = not journal.type_control_ids or account.user_type_id in journal.type_control_ids
+
+            if not is_account_control_ok or not is_type_control_ok:
+                raise UserError(_("You cannot use this account (%s) in this journal, check the section 'Control-Access' under "
+                                  "tab 'Advanced Settings' on the related journal.", account.display_name))
 
     @api.constrains('account_id', 'tax_ids', 'tax_line_id', 'reconciled')
     def _check_off_balance(self):
